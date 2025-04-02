@@ -1,12 +1,39 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date
 from io import BytesIO
 import numpy as np
 
 st.set_page_config(page_title="Control de Cotizaciones", layout="wide")
 
+# --- Lista de correos autorizados ---
+usuarios_autorizados = {
+    "v-ledezma@axisarquitectura.com": "Vicente Ledezma",
+    "r-gonzalez@axisarquitectura.com": "Rebeca Gonzalez",
+    "e-mendez@axisarqutiectura.com": "Esteban Mendez",
+    "j-duran@axisarquitectura.com": "Juan Gabino Duran"
+}
+
+# --- Autenticación por correo con sesión ---
+st.sidebar.title("Autenticación")
+if "correo" not in st.session_state:
+    st.session_state["correo"] = ""
+
+correo_ingresado = st.sidebar.text_input("Ingresa tu correo corporativo", value=st.session_state["correo"])
+st.session_state["correo"] = correo_ingresado
+
+autenticado = correo_ingresado in usuarios_autorizados
+
+if not autenticado:
+    st.warning("⚠️ Ingresa un correo autorizado para acceder a la app.")
+    st.stop()
+
+# --- Mensaje de bienvenida personalizado ---
+nombre_usuario = usuarios_autorizados[correo_ingresado]
+st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
+
+# --- Base de datos ---
 conn = sqlite3.connect("cotizaciones.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -29,12 +56,12 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
 """)
 conn.commit()
 
+# --- Funciones ---
 def insertar_cotizacion(data):
     cursor.execute("""
         INSERT INTO cotizaciones (
             requisicion, fecha_solicitud, descripcion, planta, usuario,
-            proveedor, fecha_envio, importe, estatus, orden_compra,
-            responsable, email_responsable
+            proveedor, fecha_envio, importe, estatus, orden_compra, responsable, email_responsable
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, data)
     conn.commit()
@@ -64,9 +91,16 @@ def eliminar_cotizacion(id):
     cursor.execute("DELETE FROM cotizaciones WHERE id = ?", (id,))
     conn.commit()
 
+def obtener_cotizaciones():
+    return pd.read_sql_query("SELECT * FROM cotizaciones", conn)
+
+# --- Interfaz ---
 st.title("📋 Control de Cotizaciones")
 
-menu = ["Capturar PR", "Operación", "Seguimiento", "Cotizaciones Completadas"]
+correo_usuario = st.session_state["correo"]
+menu_completo = ["Capturar PR", "Operación", "Seguimiento", "Cotizaciones Completadas"]
+menu_colaborador = ["Operación", "Seguimiento", "Cotizaciones Completadas"]
+menu = menu_completo if correo_usuario == "j-duran@axisarquitectura.com" else menu_colaborador
 opcion = st.sidebar.selectbox("Menú", menu)
 
 if opcion == "Capturar PR":
@@ -97,127 +131,56 @@ if opcion == "Capturar PR":
             insertar_cotizacion(data)
             st.success("✅ PR registrada correctamente")
 
-elif opcion == "Operación":
-    st.header("🧾 Cotizaciones Pendientes")
-    df = pd.read_sql_query("SELECT * FROM cotizaciones", conn)
+if opcion == "Operación":
+    st.header("🔧 Registro de Cotización")
+    df = obtener_cotizaciones()
+    pendientes = df[df["proveedor"] == ""]
+    seleccion = st.selectbox("Selecciona PR sin cotización", pendientes["requisicion"] if not pendientes.empty else [])
 
-    if not df.empty:
-        df['fecha_solicitud'] = pd.to_datetime(df['fecha_solicitud'], errors='coerce')
-        df['fecha_envio'] = pd.to_datetime(df['fecha_envio'], errors='coerce')
-        hoy = pd.to_datetime(datetime.today().date())
-        df['dias_respuesta'] = (df['fecha_envio'] - df['fecha_solicitud']).dt.days
-        df['dias_sin_respuesta'] = np.where(df['fecha_envio'].isna(), (hoy - df['fecha_solicitud']).dt.days, None)
-        df['alerta'] = np.where((df['fecha_envio'].isna()) & ((hoy - df['fecha_solicitud']).dt.days > 5), "⚠️ +5 días", "")
-        df['orden_compra_generada'] = df['orden_compra'].apply(lambda x: "Sí" if x else "No")
+    if seleccion:
+        fila = pendientes[pendientes["requisicion"] == seleccion].iloc[0]
+        with st.form("form_operacion"):
+            proveedor = st.text_input("Proveedor")
+            fecha_envio = st.date_input("Fecha de Cotización", value=date.today())
+            importe = st.number_input("Importe", min_value=0.0, step=100.0)
+            estatus = st.selectbox("Estatus", ["En Proceso", "Con Orden de Compra", "Cancelada"])
+            orden_compra = st.text_input("Orden de Compra")
 
-        pendientes = df[df['proveedor'] == ""]
-        if not pendientes.empty:
-            seleccion = st.selectbox("Selecciona una PR para completar:", pendientes['id'].astype(str) + " - " + pendientes['requisicion'])
+            submitted = st.form_submit_button("Actualizar Cotización")
+            if submitted:
+                actualizar_cotizacion(
+                    fila["id"], proveedor, str(fecha_envio), importe, estatus, orden_compra
+                )
+                st.success("✅ Cotización actualizada correctamente")
 
-            if seleccion:
-                id_sel = int(seleccion.split(" - ")[0])
-                row = pendientes[pendientes['id'] == id_sel].iloc[0]
+if opcion == "Seguimiento":
+    st.header("⏱️ Seguimiento de PRs Abiertas")
+    df = obtener_cotizaciones()
+    df_abiertas = df[df["proveedor"] == ""]
+    if not df_abiertas.empty:
+        df_abiertas = df_abiertas[["requisicion", "descripcion", "fecha_solicitud"]].copy()
+        df_abiertas["fecha_solicitud"] = pd.to_datetime(df_abiertas["fecha_solicitud"])
+        df_abiertas["días transcurridos"] = (pd.to_datetime("today") - df_abiertas["fecha_solicitud"]).dt.days
 
-                st.subheader("📦 Completar Cotización")
-                with st.form("form_completar"):
-                    proveedor = st.text_input("Proveedor", value=row['proveedor'])
-                    fecha_envio = st.date_input("Fecha de Envío de Cotización")
-                    importe = st.number_input("Importe Cotización", min_value=0.0, step=0.01)
-                    estatus = st.selectbox("Estatus", ["En Proceso", "Cotizada", "Cerrada", "Orden de Compra generada"], index=0)
-                    orden_compra = st.text_input("No. Orden de Compra")
+        def color_dias(val):
+            return 'background-color: #ffa1a1' if val > 5 else ''
 
-                    actualizar = st.form_submit_button("Actualizar Cotización")
-                    if actualizar:
-                        actualizar_cotizacion(
-                            id_sel, proveedor, str(fecha_envio), importe, estatus, orden_compra
-                        )
-                        st.success("✅ Cotización actualizada")
-
-        st.subheader("📊 Todas las Cotizaciones")
-        st.dataframe(df, use_container_width=True)
-
-        with st.expander("🗑️ Eliminar registro"):
-            id_borrar = st.number_input("ID del registro a eliminar", min_value=1, step=1)
-            if st.button("Eliminar Registro"):
-                eliminar_cotizacion(id_borrar)
-                st.warning(f"Registro con ID {id_borrar} eliminado.")
-
-        excel_data, nombre_archivo = exportar_excel(df)
-        st.download_button(
-            label="📥 Descargar Excel",
-            data=excel_data,
-            file_name=nombre_archivo,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        st.dataframe(df_abiertas.style.applymap(color_dias, subset=["días transcurridos"]))
     else:
-        st.info("No hay registros disponibles.")
+        st.info("No hay PRs abiertas en seguimiento.")
 
-elif opcion == "Seguimiento":
-    st.header("⏱️ Seguimiento de Cotizaciones")
-    df = pd.read_sql_query("SELECT * FROM cotizaciones", conn)
-
-    if not df.empty:
-        df['fecha_solicitud'] = pd.to_datetime(df['fecha_solicitud'], errors='coerce')
-        hoy = pd.to_datetime(datetime.today().date())
-        df['dias_transcurridos'] = (hoy - df['fecha_solicitud']).dt.days
-
-        resumen = df[['requisicion', 'descripcion', 'fecha_solicitud', 'dias_transcurridos', 'planta', 'usuario']]
-
-        plantas = resumen['planta'].dropna().unique().tolist()
-        usuarios = resumen['usuario'].dropna().unique().tolist()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            planta_sel = st.selectbox("Filtrar por Planta", ["Todas"] + plantas)
-        with col2:
-            usuario_sel = st.selectbox("Filtrar por Usuario", ["Todos"] + usuarios)
-
-        if planta_sel != "Todas":
-            resumen = resumen[resumen['planta'] == planta_sel]
-        if usuario_sel != "Todos":
-            resumen = resumen[resumen['usuario'] == usuario_sel]
-
-        def destacar_fila(row):
-            color = 'background-color: #ffcccc' if row['dias_transcurridos'] > 5 else ''
-            return [color] * len(row)
-
-        st.dataframe(resumen.style.apply(destacar_fila, axis=1), use_container_width=True)
-    else:
-        st.info("No hay registros para mostrar.")
-
-elif opcion == "Cotizaciones Completadas":
+if opcion == "Cotizaciones Completadas":
     st.header("✅ Cotizaciones Completadas")
-    df = pd.read_sql_query("SELECT * FROM cotizaciones WHERE proveedor != ''", conn)
-
-    if not df.empty:
-        df['fecha_solicitud'] = pd.to_datetime(df['fecha_solicitud'], errors='coerce')
-        df['fecha_envio'] = pd.to_datetime(df['fecha_envio'], errors='coerce')
-        df['dias_respuesta'] = (df['fecha_envio'] - df['fecha_solicitud']).dt.days
-        df['orden_compra_generada'] = df['orden_compra'].apply(lambda x: "Sí" if x else "No")
-
-        st.subheader("📋 Resumen por PR")
-        resumen = df[['requisicion', 'fecha_solicitud']].copy()
-        hoy = pd.to_datetime(datetime.today().date())
-        resumen['dias_transcurridos'] = (hoy - resumen['fecha_solicitud']).dt.days
-
-        def destacar_fila(row):
-            color = 'background-color: #ffcccc' if row['dias_transcurridos'] > 5 else ''
-            return [color] * len(row)
-
-        st.dataframe(resumen.style.apply(destacar_fila, axis=1))
-
-        st.subheader("📊 Detalle de Cotizaciones")
-        st.dataframe(df, use_container_width=True)
-
-        excel_data, nombre_archivo = exportar_excel(df)
+    df = obtener_cotizaciones()
+    completadas = df[df["proveedor"] != ""]
+    st.dataframe(completadas)
+    if not completadas.empty:
+        output, nombre_archivo = exportar_excel(completadas)
         st.download_button(
             label="📥 Descargar Excel",
-            data=excel_data,
+            data=output,
             file_name=nombre_archivo,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-    else:
-        st.info("No hay cotizaciones completadas aún.")
-
 
 
