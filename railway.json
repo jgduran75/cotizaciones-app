@@ -1,0 +1,10 @@
+{
+    "build": {
+      "env": {
+        "PYTHON_VERSION": "3.10"
+      }
+    },
+    "deploy": {
+      "startCommand": "streamlit run cotizaciones_app.py --server.port=$PORT --server.enableCORS=false"
+    }
+  }
