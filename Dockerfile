@@ -2,12 +2,12 @@ FROM python:3.10
 
 WORKDIR /app
 
-COPY requirements.txt ./requirements.txt
+COPY requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENV PORT=8501
-EXPOSE $PORT
+EXPOSE 8501
 
-CMD sh -c "streamlit run cotizaciones_app.py --server.port=\$PORT --server.enableCORS=false"
+CMD streamlit run cotizaciones_app.py --server.port=8501 --server.enableCORS=false
