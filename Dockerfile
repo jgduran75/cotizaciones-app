@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 8501
 
-CMD ["sh", "-c", "streamlit run cotizaciones_app.py --server.port=$PORT --server.enableCORS=false"]
+ENTRYPOINT ["sh", "-c", "streamlit run cotizaciones_app.py --server.port=$PORT --server.enableCORS=false"]
