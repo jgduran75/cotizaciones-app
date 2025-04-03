@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE $PORT
 
-CMD ["sh", "-c", "streamlit run cotizaciones_app.py --server.port=$PORT --server.enableCORS=false"]
+CMD sh -c "streamlit run cotizaciones_app.py --server.port=\$PORT --server.enableCORS=false"
