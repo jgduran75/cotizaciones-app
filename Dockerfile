@@ -7,6 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8501
+ENV PORT=8501
 
-ENTRYPOINT ["sh", "-c", "streamlit run cotizaciones_app.py --server.port=$PORT --server.enableCORS=false"]
+EXPOSE $PORT
+
+CMD streamlit run cotizaciones_app.py --server.port=$PORT --server.enableCORS=false
