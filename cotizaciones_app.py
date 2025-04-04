@@ -38,9 +38,14 @@ def main():
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
     raw_url = os.getenv("DATABASE_URL")
+    st.sidebar.text(f"DEBUG: raw_url = {raw_url}")  # Línea temporal para depuración
+
     if raw_url and raw_url.startswith("${{") and "shared." in raw_url:
         ref_var_name = raw_url.strip("${{}} ").split(".")[-1]
+        st.sidebar.text(f"DEBUG: ref_var_name = {ref_var_name}")
         raw_url = os.getenv(ref_var_name)
+        st.sidebar.text(f"DEBUG: resolved_url = {raw_url}")
+
     DATABASE_URL = raw_url
 
     engine = create_engine(DATABASE_URL)
