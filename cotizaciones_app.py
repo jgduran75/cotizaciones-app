@@ -37,7 +37,12 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    DATABASE_URL = os.getenv("DATABASE_URL")
+    raw_url = os.getenv("DATABASE_URL")
+    if raw_url and raw_url.startswith("${{") and "shared." in raw_url:
+        ref_var_name = raw_url.strip("${{}} ").split(".")[-1]
+        raw_url = os.getenv(ref_var_name)
+    DATABASE_URL = raw_url
+
     engine = create_engine(DATABASE_URL)
     conn = engine.connect()
 
@@ -198,4 +203,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
