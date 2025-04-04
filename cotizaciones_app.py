@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
+from sqlalchemy import create_engine, text
 from datetime import datetime, date
 from io import BytesIO
 import numpy as np
+import os
 
 st.set_page_config(page_title="Control de Cotizaciones", layout="wide")
 
@@ -16,31 +17,33 @@ def main():
         "j-duran@axisarquitectura.com": "Juan Gabino Duran"
     }
 
-    # --- Autenticación por correo con sesión ---
+    # --- Autenticación por correo con botón ---
     st.sidebar.title("Autenticación")
     if "correo" not in st.session_state:
         st.session_state["correo"] = ""
 
     correo_ingresado = st.sidebar.text_input("Ingresa tu correo corporativo", value=st.session_state["correo"])
-    st.session_state["correo"] = correo_ingresado
+    login = st.sidebar.button("Iniciar sesión")
 
-    autenticado = correo_ingresado in usuarios_autorizados
+    if login:
+        st.session_state["correo"] = correo_ingresado
 
-    if not autenticado:
-        st.warning("⚠️ Ingresa un correo autorizado para acceder a la app.")
+    if "correo" not in st.session_state or st.session_state["correo"] not in usuarios_autorizados:
+        st.warning("⚠️ Ingresa un correo autorizado y haz clic en 'Iniciar sesión'.")
         st.stop()
 
     # --- Mensaje de bienvenida personalizado ---
-    nombre_usuario = usuarios_autorizados[correo_ingresado]
+    nombre_usuario = usuarios_autorizados[st.session_state["correo"]]
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
-    # --- Base de datos ---
-    conn = sqlite3.connect("cotizaciones.db", check_same_thread=False)
-    cursor = conn.cursor()
+    # --- Base de datos PostgreSQL con SQLAlchemy ---
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    engine = create_engine(DATABASE_URL)
+    conn = engine.connect()
 
-    cursor.execute("""
+    conn.execute(text("""
     CREATE TABLE IF NOT EXISTS cotizaciones (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id SERIAL PRIMARY KEY,
         requisicion TEXT,
         fecha_solicitud TEXT,
         descripcion TEXT,
@@ -54,30 +57,31 @@ def main():
         responsable TEXT,
         email_responsable TEXT
     )
-    """)
-    conn.commit()
+    """))
 
     # --- Funciones ---
     def insertar_cotizacion(data):
-        cursor.execute("""
+        conn.execute(text("""
             INSERT INTO cotizaciones (
                 requisicion, fecha_solicitud, descripcion, planta, usuario,
                 proveedor, fecha_envio, importe, estatus, orden_compra, responsable, email_responsable
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, data)
-        conn.commit()
+            ) VALUES (:requisicion, :fecha_solicitud, :descripcion, :planta, :usuario, :proveedor, :fecha_envio,
+                      :importe, :estatus, :orden_compra, :responsable, :email_responsable)
+        """), data)
 
     def actualizar_cotizacion(id, proveedor, fecha_envio, importe, estatus, orden_compra):
-        cursor.execute("""
+        conn.execute(text("""
             UPDATE cotizaciones SET
-                proveedor = ?,
-                fecha_envio = ?,
-                importe = ?,
-                estatus = ?,
-                orden_compra = ?
-            WHERE id = ?
-        """, (proveedor, fecha_envio, importe, estatus, orden_compra, id))
-        conn.commit()
+                proveedor = :proveedor,
+                fecha_envio = :fecha_envio,
+                importe = :importe,
+                estatus = :estatus,
+                orden_compra = :orden_compra
+            WHERE id = :id
+        """), {
+            "id": id, "proveedor": proveedor, "fecha_envio": fecha_envio,
+            "importe": importe, "estatus": estatus, "orden_compra": orden_compra
+        })
 
     def exportar_excel(df):
         output = BytesIO()
@@ -89,11 +93,10 @@ def main():
         return output, nombre_archivo
 
     def eliminar_cotizacion(id):
-        cursor.execute("DELETE FROM cotizaciones WHERE id = ?", (id,))
-        conn.commit()
+        conn.execute(text("DELETE FROM cotizaciones WHERE id = :id"), {"id": id})
 
     def obtener_cotizaciones():
-        return pd.read_sql_query("SELECT * FROM cotizaciones", conn)
+        return pd.read_sql("SELECT * FROM cotizaciones", conn)
 
     # --- Interfaz ---
     st.title("📋 Control de Cotizaciones")
@@ -124,11 +127,20 @@ def main():
 
             submitted = st.form_submit_button("Guardar PR")
             if submitted:
-                data = (
-                    requisicion, str(fecha_solicitud), descripcion, planta,
-                    usuario, "", "", 0.0, "Abierta", "",
-                    responsable, email_responsable
-                )
+                data = {
+                    "requisicion": requisicion,
+                    "fecha_solicitud": str(fecha_solicitud),
+                    "descripcion": descripcion,
+                    "planta": planta,
+                    "usuario": usuario,
+                    "proveedor": "",
+                    "fecha_envio": "",
+                    "importe": 0.0,
+                    "estatus": "Abierta",
+                    "orden_compra": "",
+                    "responsable": responsable,
+                    "email_responsable": email_responsable
+                }
                 insertar_cotizacion(data)
                 st.success("✅ PR registrada correctamente")
 
