@@ -37,7 +37,7 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = os.environ.get("DATABASE_URL")
+    raw_url = os.getenv("DATABASE_URL", "NO_DATABASE_URL_SET")
     st.sidebar.text(f"DEBUG: raw_url = {raw_url}")
 
     DATABASE_URL = raw_url
