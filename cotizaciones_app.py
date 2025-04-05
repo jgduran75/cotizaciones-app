@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, text
 from datetime import datetime, date
 from io import BytesIO
 import numpy as np
-import os  # cambio mínimo para forzar redeploy
+import os
 
 st.set_page_config(page_title="Control de Cotizaciones", layout="wide")
 
@@ -37,15 +37,15 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or ""
-    raw_url = raw_url.strip()
+    raw_url = os.getenv("DATABASE_URL")
+    raw_url = raw_url.strip() if raw_url else ""
 
     # 🐞 DEBUG: Mostrar valor de raw_url y variables de entorno
-    st.sidebar.text(f"DEBUG (v2): raw_url = {raw_url or 'None'}")
+    st.sidebar.text(f"DEBUG (v3): raw_url = {raw_url or 'None'}")
     st.sidebar.text("DEBUG: Entorno completo:")
     st.sidebar.text(str(dict(os.environ)))
 
-    if not raw_url or raw_url == "NO_DATABASE_URL_SET":
+    if not raw_url or raw_url.startswith("${"):
         raise ValueError("❌ La variable de entorno DATABASE_URL no está configurada correctamente.")
 
     engine = create_engine(raw_url)
@@ -206,6 +206,6 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-# cambio para forzar redeploy nuevamente
+# forzar redeploy
 if __name__ == "__main__":
     main()
