@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, text
 from datetime import datetime, date
 from io import BytesIO
 import numpy as np
+import os  # cambio mínimo para forzar redeploy
 
 st.set_page_config(page_title="Control de Cotizaciones", layout="wide")
 
@@ -36,7 +37,7 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = st.secrets["DATABASE_URL"]
+    raw_url = os.environ.get("DATABASE_URL")
     st.sidebar.text(f"DEBUG: raw_url = {raw_url}")
 
     DATABASE_URL = raw_url
@@ -200,4 +201,5 @@ def main():
 # cambio para forzar redeploy
 if __name__ == "__main__":
     main()
+
 
