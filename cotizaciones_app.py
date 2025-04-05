@@ -38,9 +38,9 @@ def main():
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
     raw_url = os.environ.get("DATABASE_URL", "").strip()
-    st.sidebar.text(f"DEBUG: raw_url = {raw_url}")
-    if not raw_url:
-        raise ValueError("❌ La variable de entorno DATABASE_URL no está configurada.")
+    st.sidebar.text(f"DEBUG: raw_url = {raw_url or 'None'}")
+    if not raw_url or raw_url == "NO_DATABASE_URL_SET":
+        raise ValueError("❌ La variable de entorno DATABASE_URL no está configurada correctamente.")
 
     engine = create_engine(raw_url)
     conn = engine.connect()
@@ -203,6 +203,7 @@ def main():
 # cambio para forzar redeploy
 if __name__ == "__main__":
     main()
+
 
 
 
