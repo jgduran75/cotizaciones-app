@@ -37,7 +37,7 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = os.environ.get("DATABASE_URL")
+    raw_url = os.environ.get("DATABASE_URL", "").strip()
     st.sidebar.text(f"DEBUG: raw_url = {raw_url}")
     if not raw_url:
         raise ValueError("❌ La variable de entorno DATABASE_URL no está configurada.")
