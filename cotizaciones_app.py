@@ -1,4 +1,4 @@
-import streamlit as st
+iimport streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import datetime, date
@@ -38,7 +38,12 @@ def main():
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
     raw_url = os.environ.get("DATABASE_URL", "").strip()
+
+    # 🐞 DEBUG: Mostrar valor de raw_url y variables de entorno
     st.sidebar.text(f"DEBUG (v2): raw_url = {raw_url or 'None'}")
+    st.sidebar.text("DEBUG: Entorno completo:")
+    st.sidebar.text(str(dict(os.environ)))
+
     if not raw_url or raw_url == "NO_DATABASE_URL_SET":
         raise ValueError("❌ La variable de entorno DATABASE_URL no está configurada correctamente.")
 
@@ -203,6 +208,7 @@ def main():
 # cambio para forzar redeploy
 if __name__ == "__main__":
     main()
+
 
 
 
