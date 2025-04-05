@@ -37,7 +37,8 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = os.environ.get("DATABASE_URL", "").strip()
+    raw_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or ""
+    raw_url = raw_url.strip()
 
     # 🐞 DEBUG: Mostrar valor de raw_url y variables de entorno
     st.sidebar.text(f"DEBUG (v2): raw_url = {raw_url or 'None'}")
@@ -208,9 +209,3 @@ def main():
 # cambio para forzar redeploy
 if __name__ == "__main__":
     main()
-
-
-
-
-
-# forzar redeploy definitivo
