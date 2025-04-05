@@ -36,9 +36,8 @@ def main():
     nombre_usuario = usuarios_autorizados[st.session_state["correo"]]
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
-    # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = os.getenv("DATABASE_URL")
-    raw_url = raw_url.strip() if raw_url else ""
+    # --- Base de datos PostgreSQL con conexión directa ---
+    raw_url = "postgresql://zRciVEDVxoODqawVpUcExevMPnT0FjZC@postgres.railway.internal:5432/railway"
 
     # 🐞 DEBUG: Mostrar valor de raw_url y variables de entorno
     st.sidebar.text(f"DEBUG (v3): raw_url = {raw_url or 'None'}")
