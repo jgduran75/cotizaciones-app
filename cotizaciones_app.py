@@ -4,7 +4,6 @@ from sqlalchemy import create_engine, text
 from datetime import datetime, date
 from io import BytesIO
 import numpy as np
-import os
 
 st.set_page_config(page_title="Control de Cotizaciones", layout="wide")
 
@@ -37,17 +36,10 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    raw_url = os.getenv("DATABASE_URL")
-    st.sidebar.text(f"DEBUG: raw_url = {raw_url}")  # Línea temporal para depuración
-
-    if raw_url and raw_url.startswith("${{") and "shared." in raw_url:
-        ref_var_name = raw_url.strip("${{}} ").split(".")[-1]
-        st.sidebar.text(f"DEBUG: ref_var_name = {ref_var_name}")
-        raw_url = os.getenv(ref_var_name)
-        st.sidebar.text(f"DEBUG: resolved_url = {raw_url}")
+    raw_url = st.secrets["DATABASE_URL"]
+    st.sidebar.text(f"DEBUG: raw_url = {raw_url}")
 
     DATABASE_URL = raw_url
-
     engine = create_engine(DATABASE_URL)
     conn = engine.connect()
 
@@ -205,6 +197,7 @@ def main():
                 file_name=nombre_archivo,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-# Cambio mínimo para forzar redeploy
+# cambio para forzar redeploy
 if __name__ == "__main__":
     main()
+
