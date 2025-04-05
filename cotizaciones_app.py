@@ -37,9 +37,9 @@ def main():
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
     # --- Base de datos PostgreSQL con SQLAlchemy ---
-    DATABASE_URL = os.getenv("DATABASE_URL", "NO_DATABASE_URL_SET")
-    st.sidebar.text(f"DEBUG: DATABASE_URL = {DATABASE_URL}")
-    DATABASE_URL = raw_url
+    raw_url = os.environ.get("DATABASE_URL")
+    st.sidebar.text(f"DEBUG: raw_url = {raw_url}")
+    DATABASE_URL = raw_url if raw_url else "NO_DATABASE_URL_SET"
     engine = create_engine(DATABASE_URL)
     conn = engine.connect()
 
@@ -197,7 +197,8 @@ def main():
                 file_name=nombre_archivo,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-# cambio para forzar redeploy espero funcione
+
+# cambio para forzar redeploy
 if __name__ == "__main__":
     main()
 
