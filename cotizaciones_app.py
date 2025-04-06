@@ -36,8 +36,8 @@ def main():
     nombre_usuario = usuarios_autorizados[st.session_state["correo"]]
     st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
 
-    # --- Base de datos PostgreSQL con conexión directa ---
-    raw_url = "postgresql://zRciVEDVxoODqawVpUcExevMPnT0FjZC@postgres.railway.internal:5432/railway"
+    # --- Base de datos PostgreSQL con fallback ---
+    raw_url = os.environ.get("DATABASE_URL")
 
     # 🐞 DEBUG: Mostrar valor de raw_url y variables de entorno
     st.sidebar.text(f"DEBUG (v3): raw_url = {raw_url or 'None'}")
@@ -45,7 +45,8 @@ def main():
     st.sidebar.text(str(dict(os.environ)))
 
     if not raw_url or raw_url.startswith("${"):
-        raise ValueError("❌ La variable de entorno DATABASE_URL no está configurada correctamente.")
+        raw_url = "postgresql://postgres:zRcivEDVxoODqawVpUcExevMPnTOFjZC@postgres.railway.internal:5432/railway"
+        st.sidebar.warning("⚠️ Usando fallback de conexión directa a PostgreSQL.")
 
     engine = create_engine(raw_url)
     conn = engine.connect()
