@@ -18,12 +18,11 @@ def main():
     }
 
     # --- Autenticación por correo con botón ---
-    st.sidebar.title("Autenticación")
     if "correo" not in st.session_state:
         st.session_state["correo"] = ""
 
-    correo_ingresado = st.sidebar.text_input("Ingresa tu correo corporativo", value=st.session_state["correo"])
-    login = st.sidebar.button("Iniciar sesión")
+    correo_ingresado = st.text_input("Ingresa tu correo corporativo", value=st.session_state["correo"])
+    login = st.button("Iniciar sesión")
 
     if login:
         st.session_state["correo"] = correo_ingresado
@@ -34,19 +33,13 @@ def main():
 
     # --- Mensaje de bienvenida personalizado ---
     nombre_usuario = usuarios_autorizados[st.session_state["correo"]]
-    st.sidebar.success(f"Bienvenido, {nombre_usuario} 👋")
+    st.success(f"Bienvenido, {nombre_usuario} 👋")
 
-    # --- Base de datos PostgreSQL con fallback ---
+    # --- Base de datos PostgreSQL ---
     raw_url = os.environ.get("DATABASE_URL")
-
-    # 🐞 DEBUG: Mostrar valor de raw_url y variables de entorno
-    st.sidebar.text(f"DEBUG (v3): raw_url = {raw_url or 'None'}")
-    st.sidebar.text("DEBUG: Entorno completo:")
-    st.sidebar.text(str(dict(os.environ)))
-
     if not raw_url or raw_url.startswith("${"):
-        raw_url = "postgresql://postgres:zRcivEDVxoODqawVpUcExevMPnTOFjZC@postgres.railway.internal:5432/railway"
-        st.sidebar.warning("⚠️ Usando fallback de conexión directa a PostgreSQL.")
+        st.error("❌ La variable DATABASE_URL no está configurada correctamente.")
+        st.stop()
 
     engine = create_engine(raw_url)
     conn = engine.connect()
@@ -115,7 +108,7 @@ def main():
     menu_completo = ["Capturar PR", "Operación", "Seguimiento", "Cotizaciones Completadas"]
     menu_colaborador = ["Operación", "Seguimiento", "Cotizaciones Completadas"]
     menu = menu_completo if correo_usuario == "j-duran@axisarquitectura.com" else menu_colaborador
-    opcion = st.sidebar.selectbox("Menú", menu)
+    opcion = st.selectbox("Menú", menu)
 
     if opcion == "Capturar PR":
         st.header("📝 Nueva Solicitud de Cotización (PR)")
@@ -206,6 +199,6 @@ def main():
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
-# forzar redeploy
 if __name__ == "__main__":
     main()
+
