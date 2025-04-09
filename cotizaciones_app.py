@@ -13,7 +13,7 @@ def main():
     usuarios_autorizados = {
         "v-ledezma@axisarquitectura.com": "Vicente Ledezma",
         "r-gonzalez@axisarquitectura.com": "Rebeca Gonzalez",
-        "e-mendez@axisarqutiectura.com": "Esteban Mendez",
+        "e-mendez@axisarquitectura.com": "Esteban Mendez",
         "j-duran@axisarquitectura.com": "Juan Gabino Duran"
     }
 
