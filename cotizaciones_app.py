@@ -14,7 +14,7 @@ def main():
         "v-ledezma@axisarquitectura.com": "Vicente Ledezma",
         "r-gonzalez@axisarquitectura.com": "Rebeca Gonzalez",
         "e-mendez@axisarquitectura.com": "Esteban Mendez",
-        "j-duran@axisarquitectura.com": "Juan Gabino Duran"
+        "jgd@gmail.com": "Juan Gabino Duran"
     }
 
     # --- Autenticación por correo con botón ---
