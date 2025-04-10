@@ -107,7 +107,7 @@ def main():
     correo_usuario = st.session_state["correo"]
     menu_completo = ["Capturar PR", "Operación", "Seguimiento", "Cotizaciones Completadas"]
     menu_colaborador = ["Operación", "Seguimiento", "Cotizaciones Completadas"]
-    menu = menu_completo if correo_usuario == "j-duran@axisarquitectura.com" else menu_colaborador
+    menu = menu_completo if correo_usuario == "jgd@gmail.com" else menu_colaborador
     opcion = st.selectbox("Menú", menu)
 
     if opcion == "Capturar PR":
