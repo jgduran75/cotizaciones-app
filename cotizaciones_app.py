@@ -80,7 +80,7 @@ def main():
                     orden_compra = :orden_compra
                 WHERE id = :id
             """), {
-                "id": int(id),  # ⚠️ Conversión explícita a int para evitar numpy.int64
+                "id": int(id),
                 "proveedor": proveedor,
                 "fecha_envio": fecha_envio,
                 "importe": importe,
@@ -175,24 +175,27 @@ def main():
     if opcion == "Seguimiento":
         st.header("⏱️ Seguimiento de PRs Abiertas")
         df = obtener_cotizaciones()
-        df_abiertas = df[df["proveedor"] == ""]
+        df_abiertas = df[(df["proveedor"] != "") & (df["orden_compra"] == "")]
+
         if not df_abiertas.empty:
-            df_abiertas = df_abiertas[["requisicion", "descripcion", "fecha_solicitud"]].copy()
-            df_abiertas["fecha_solicitud"] = pd.to_datetime(df_abiertas["fecha_solicitud"])
-            df_abiertas["días transcurridos"] = (pd.to_datetime("today") - df_abiertas["fecha_solicitud"]).dt.days
-
-            def color_dias(val):
-                return 'background-color: #ffa1a1' if val > 5 else ''
-
-            st.dataframe(df_abiertas.style.applymap(color_dias, subset=["días transcurridos"]))
+            for _, fila in df_abiertas.iterrows():
+                with st.expander(f"PR: {fila['requisicion']} - {fila['descripcion']}"):
+                    st.write(f"Fecha de Solicitud: {fila['fecha_solicitud']}")
+                    motivo = st.text_area("¿Por qué no se generó orden de compra?", key=f"motivo_{fila['id']}")
+                    orden = st.text_input("Número de Orden de Compra", key=f"orden_{fila['id']}")
+                    if st.button("Guardar seguimiento", key=f"guardar_{fila['id']}"):
+                        estatus_final = "Con Orden de Compra" if orden else "Cancelada"
+                        actualizar_cotizacion(
+                            int(fila["id"]), fila["proveedor"], fila["fecha_envio"], fila["importe"], estatus_final, orden
+                        )
+                        st.success("Seguimiento actualizado.")
         else:
-            st.info("No hay PRs abiertas en seguimiento.")
+            st.info("No hay PRs en seguimiento pendientes de orden de compra.")
 
     if opcion == "Cotizaciones Completadas":
         st.header("✅ Cotizaciones Completadas")
         df = obtener_cotizaciones()
-        st.write("🧪 Datos completos en la tabla:", df)
-        completadas = df[df["proveedor"] != ""]
+        completadas = df[df["orden_compra"] != ""]
         st.dataframe(completadas)
         if not completadas.empty:
             output, nombre_archivo = exportar_excel(completadas)
