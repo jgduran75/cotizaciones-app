@@ -17,7 +17,6 @@ def main():
         "jgd@gmail.com": "Juan Gabino Duran"
     }
 
-    # --- Autenticación por correo con botón ---
     if "correo" not in st.session_state:
         st.session_state["correo"] = ""
 
@@ -31,11 +30,9 @@ def main():
         st.warning("⚠️ Ingresa un correo autorizado y haz clic en 'Iniciar sesión'.")
         st.stop()
 
-    # --- Mensaje de bienvenida personalizado ---
     nombre_usuario = usuarios_autorizados[st.session_state["correo"]]
     st.success(f"Bienvenido, {nombre_usuario} 👋")
 
-    # --- Base de datos PostgreSQL ---
     raw_url = os.environ.get("DATABASE_URL")
     if not raw_url or raw_url.startswith("${"):
         st.error("❌ La variable DATABASE_URL no está configurada correctamente.")
@@ -62,7 +59,6 @@ def main():
         )
         """))
 
-    # --- Funciones ---
     def insertar_cotizacion(data):
         with engine.begin() as conn:
             conn.execute(text("""
@@ -84,8 +80,12 @@ def main():
                     orden_compra = :orden_compra
                 WHERE id = :id
             """), {
-                "id": id, "proveedor": proveedor, "fecha_envio": fecha_envio,
-                "importe": importe, "estatus": estatus, "orden_compra": orden_compra
+                "id": int(id),  # ⚠️ Conversión explícita a int para evitar numpy.int64
+                "proveedor": proveedor,
+                "fecha_envio": fecha_envio,
+                "importe": importe,
+                "estatus": estatus,
+                "orden_compra": orden_compra
             })
 
     def exportar_excel(df):
@@ -99,13 +99,12 @@ def main():
 
     def eliminar_cotizacion(id):
         with engine.begin() as conn:
-            conn.execute(text("DELETE FROM cotizaciones WHERE id = :id"), {"id": id})
+            conn.execute(text("DELETE FROM cotizaciones WHERE id = :id"), {"id": int(id)})
 
     def obtener_cotizaciones():
         with engine.begin() as conn:
             return pd.read_sql("SELECT * FROM cotizaciones", conn)
 
-    # --- Interfaz ---
     st.title("📋 Control de Cotizaciones")
 
     correo_usuario = st.session_state["correo"]
@@ -169,7 +168,7 @@ def main():
                 submitted = st.form_submit_button("Actualizar Cotización")
                 if submitted:
                     actualizar_cotizacion(
-                        fila["id"], proveedor, str(fecha_envio), importe, estatus, orden_compra
+                        int(fila["id"]), proveedor, str(fecha_envio), importe, estatus, orden_compra
                     )
                     st.success("✅ Cotización actualizada correctamente")
 
@@ -206,5 +205,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
