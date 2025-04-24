@@ -26,6 +26,14 @@ def main():
             perfil TEXT
         )
         """))
+        # Inserta usuario admin por defecto si no existe
+        conn.execute(text("""
+        INSERT INTO usuarios (nombre, usuario, contrasena, correo, perfil)
+        SELECT 'Administrador', 'Pecher', 'Bru2387', 'j-duran@axisarquitectura.com', 'admin'
+        WHERE NOT EXISTS (
+            SELECT 1 FROM usuarios WHERE usuario = 'Pecher'
+        )
+        """))
 
     modo = st.sidebar.radio("Modo de acceso", ["Iniciar sesión", "Registrar nuevo usuario (admin)"])
 
@@ -224,5 +232,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
