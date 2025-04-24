@@ -162,13 +162,11 @@ def main():
                 proveedor = st.text_input("Proveedor")
                 fecha_envio = st.date_input("Fecha de Cotización", value=date.today())
                 importe = st.number_input("Importe", min_value=0.0, step=100.0)
-                estatus = st.selectbox("Estatus", ["En Proceso", "Con Orden de Compra", "Cancelada"])
-                orden_compra = st.text_input("Orden de Compra")
 
                 submitted = st.form_submit_button("Actualizar Cotización")
                 if submitted:
                     actualizar_cotizacion(
-                        int(fila["id"]), proveedor, str(fecha_envio), importe, estatus, orden_compra
+                        int(fila["id"]), proveedor, str(fecha_envio), importe, "En Proceso", ""
                     )
                     st.success("✅ Cotización actualizada correctamente")
 
@@ -199,12 +197,11 @@ def main():
             st.info("No hay PRs en seguimiento pendientes de orden de compra.")
 
     if opcion == "Cotizaciones Completadas":
-        st.header("✅ Cotizaciones Completadas")
+        st.header("📊 Concentrado de Cotizaciones")
         df = obtener_cotizaciones()
-        completadas = df[df["orden_compra"] != ""]
-        st.dataframe(completadas)
-        if not completadas.empty:
-            output, nombre_archivo = exportar_excel(completadas)
+        st.dataframe(df)
+        if not df.empty:
+            output, nombre_archivo = exportar_excel(df)
             st.download_button(
                 label="📥 Descargar Excel",
                 data=output,
