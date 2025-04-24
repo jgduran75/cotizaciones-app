@@ -42,49 +42,51 @@ def main():
         st.stop()
 
     engine = create_engine(raw_url)
-    conn = engine.connect()
 
-    conn.execute(text("""
-    CREATE TABLE IF NOT EXISTS cotizaciones (
-        id SERIAL PRIMARY KEY,
-        requisicion TEXT,
-        fecha_solicitud TEXT,
-        descripcion TEXT,
-        planta TEXT,
-        usuario TEXT,
-        proveedor TEXT,
-        fecha_envio TEXT,
-        importe REAL,
-        estatus TEXT,
-        orden_compra TEXT,
-        responsable TEXT,
-        email_responsable TEXT
-    )
-    """))
+    with engine.begin() as conn:
+        conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS cotizaciones (
+            id SERIAL PRIMARY KEY,
+            requisicion TEXT,
+            fecha_solicitud TEXT,
+            descripcion TEXT,
+            planta TEXT,
+            usuario TEXT,
+            proveedor TEXT,
+            fecha_envio TEXT,
+            importe REAL,
+            estatus TEXT,
+            orden_compra TEXT,
+            responsable TEXT,
+            email_responsable TEXT
+        )
+        """))
 
     # --- Funciones ---
     def insertar_cotizacion(data):
-        conn.execute(text("""
-            INSERT INTO cotizaciones (
-                requisicion, fecha_solicitud, descripcion, planta, usuario,
-                proveedor, fecha_envio, importe, estatus, orden_compra, responsable, email_responsable
-            ) VALUES (:requisicion, :fecha_solicitud, :descripcion, :planta, :usuario, :proveedor, :fecha_envio,
-                      :importe, :estatus, :orden_compra, :responsable, :email_responsable)
-        """), data)
+        with engine.begin() as conn:
+            conn.execute(text("""
+                INSERT INTO cotizaciones (
+                    requisicion, fecha_solicitud, descripcion, planta, usuario,
+                    proveedor, fecha_envio, importe, estatus, orden_compra, responsable, email_responsable
+                ) VALUES (:requisicion, :fecha_solicitud, :descripcion, :planta, :usuario, :proveedor, :fecha_envio,
+                          :importe, :estatus, :orden_compra, :responsable, :email_responsable)
+            """), data)
 
     def actualizar_cotizacion(id, proveedor, fecha_envio, importe, estatus, orden_compra):
-        conn.execute(text("""
-            UPDATE cotizaciones SET
-                proveedor = :proveedor,
-                fecha_envio = :fecha_envio,
-                importe = :importe,
-                estatus = :estatus,
-                orden_compra = :orden_compra
-            WHERE id = :id
-        """), {
-            "id": id, "proveedor": proveedor, "fecha_envio": fecha_envio,
-            "importe": importe, "estatus": estatus, "orden_compra": orden_compra
-        })
+        with engine.begin() as conn:
+            conn.execute(text("""
+                UPDATE cotizaciones SET
+                    proveedor = :proveedor,
+                    fecha_envio = :fecha_envio,
+                    importe = :importe,
+                    estatus = :estatus,
+                    orden_compra = :orden_compra
+                WHERE id = :id
+            """), {
+                "id": id, "proveedor": proveedor, "fecha_envio": fecha_envio,
+                "importe": importe, "estatus": estatus, "orden_compra": orden_compra
+            })
 
     def exportar_excel(df):
         output = BytesIO()
@@ -96,10 +98,12 @@ def main():
         return output, nombre_archivo
 
     def eliminar_cotizacion(id):
-        conn.execute(text("DELETE FROM cotizaciones WHERE id = :id"), {"id": id})
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM cotizaciones WHERE id = :id"), {"id": id})
 
     def obtener_cotizaciones():
-        return pd.read_sql("SELECT * FROM cotizaciones", conn)
+        with engine.begin() as conn:
+            return pd.read_sql("SELECT * FROM cotizaciones", conn)
 
     # --- Interfaz ---
     st.title("📋 Control de Cotizaciones")
@@ -202,4 +206,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
