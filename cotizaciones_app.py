@@ -188,6 +188,7 @@ def main():
     if opcion == "Cotizaciones Completadas":
         st.header("✅ Cotizaciones Completadas")
         df = obtener_cotizaciones()
+        st.write("🧪 Datos completos en la tabla:", df)
         completadas = df[df["proveedor"] != ""]
         st.dataframe(completadas)
         if not completadas.empty:
