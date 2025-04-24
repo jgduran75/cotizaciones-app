@@ -122,7 +122,7 @@ def main():
             "Esteban Mendez": "e-mendez@axisarqutiectura.com"
         }
 
-        with st.form("form_pr", clear_on_submit=True):
+        with st.form("form_pr", clear_on_submit=False):
             requisicion = st.text_input("No. de Requisición")
             fecha_solicitud = st.date_input("Fecha de Solicitud", value=datetime.today())
             descripcion = st.text_area("Descripción")
@@ -153,7 +153,7 @@ def main():
     if opcion == "Operación":
         st.header("🔧 Registro de Cotización")
         df = obtener_cotizaciones()
-        pendientes = df[df["proveedor"] == ""]
+        pendientes = df[df["estatus"] == "Abierta"]
         seleccion = st.selectbox("Selecciona PR sin cotización", pendientes["requisicion"] if not pendientes.empty else [])
 
         if seleccion:
