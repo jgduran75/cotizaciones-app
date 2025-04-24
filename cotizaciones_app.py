@@ -181,10 +181,16 @@ def main():
             for _, fila in df_abiertas.iterrows():
                 with st.expander(f"PR: {fila['requisicion']} - {fila['descripcion']}"):
                     st.write(f"Fecha de Solicitud: {fila['fecha_solicitud']}")
-                    motivo = st.text_area("¿Por qué no se generó orden de compra?", key=f"motivo_{fila['id']}")
-                    orden = st.text_input("Número de Orden de Compra", key=f"orden_{fila['id']}")
+                    motivo = st.text_area("¿Por qué no se generó orden de compra?", key=f"motivo_{fila['id']}").strip()
+                    orden = st.text_input("Número de Orden de Compra", key=f"orden_{fila['id']}").strip()
                     if st.button("Guardar seguimiento", key=f"guardar_{fila['id']}"):
-                        estatus_final = "Con Orden de Compra" if orden else "Cancelada"
+                        if orden:
+                            estatus_final = "Con Orden de Compra"
+                        elif motivo:
+                            estatus_final = "Cancelada"
+                        else:
+                            st.warning("Debes ingresar un número de orden o un motivo de cancelación.")
+                            continue
                         actualizar_cotizacion(
                             int(fila["id"]), fila["proveedor"], fila["fecha_envio"], fila["importe"], estatus_final, orden
                         )
@@ -208,6 +214,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
 
