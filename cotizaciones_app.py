@@ -9,55 +9,90 @@ import os
 st.set_page_config(page_title="Control de Cotizaciones", layout="wide")
 
 def main():
-    # --- Lista de correos autorizados ---
-    usuarios_autorizados = {
-        "v-ledezma@axisarquitectura.com": "Vicente Ledezma",
-        "r-gonzalez@axisarquitectura.com": "Rebeca Gonzalez",
-        "e-mendez@axisarquitectura.com": "Esteban Mendez",
-        "jgd@gmail.com": "Juan Gabino Duran"
-    }
+    if "usuario" not in st.session_state:
+        st.session_state["usuario"] = ""
+        st.session_state["perfil"] = ""
 
-    if "correo" not in st.session_state:
-        st.session_state["correo"] = ""
-
-    correo_ingresado = st.text_input("Ingresa tu correo corporativo", value=st.session_state["correo"])
-    login = st.button("Iniciar sesión")
-
-    if login:
-        st.session_state["correo"] = correo_ingresado
-
-    if "correo" not in st.session_state or st.session_state["correo"] not in usuarios_autorizados:
-        st.warning("⚠️ Ingresa un correo autorizado y haz clic en 'Iniciar sesión'.")
-        st.stop()
-
-    nombre_usuario = usuarios_autorizados[st.session_state["correo"]]
-    st.success(f"Bienvenido, {nombre_usuario} 👋")
-
-    raw_url = os.environ.get("DATABASE_URL")
-    if not raw_url or raw_url.startswith("${"):
-        st.error("❌ La variable DATABASE_URL no está configurada correctamente.")
-        st.stop()
-
-    engine = create_engine(raw_url)
+    engine = create_engine(os.environ.get("DATABASE_URL"))
 
     with engine.begin() as conn:
         conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS cotizaciones (
+        CREATE TABLE IF NOT EXISTS usuarios (
             id SERIAL PRIMARY KEY,
-            requisicion TEXT,
-            fecha_solicitud TEXT,
-            descripcion TEXT,
-            planta TEXT,
-            usuario TEXT,
-            proveedor TEXT,
-            fecha_envio TEXT,
-            importe REAL,
-            estatus TEXT,
-            orden_compra TEXT,
-            responsable TEXT,
-            email_responsable TEXT
+            nombre TEXT,
+            usuario TEXT UNIQUE,
+            contrasena TEXT,
+            correo TEXT,
+            perfil TEXT
         )
         """))
+
+    modo = st.sidebar.radio("Modo de acceso", ["Iniciar sesión", "Registrar nuevo usuario (admin)"])
+
+    if modo == "Iniciar sesión":
+        usuario = st.sidebar.text_input("Usuario")
+        contrasena = st.sidebar.text_input("Contraseña", type="password")
+        login = st.sidebar.button("Ingresar")
+        if login:
+            with engine.begin() as conn:
+                result = conn.execute(text("SELECT * FROM usuarios WHERE usuario = :u AND contrasena = :c"),
+                                      {"u": usuario, "c": contrasena}).fetchone()
+                if result:
+                    st.session_state["usuario"] = result.usuario
+                    st.session_state["perfil"] = result.perfil
+                    st.sidebar.success(f"Bienvenido, {result.nombre}")
+                else:
+                    st.sidebar.error("Credenciales incorrectas")
+            if st.session_state["usuario"] == "":
+                st.stop()
+
+    elif modo == "Registrar nuevo usuario (admin)":
+        admin_user = st.sidebar.text_input("Usuario administrador")
+        admin_pass = st.sidebar.text_input("Contraseña administrador", type="password")
+        with engine.begin() as conn:
+            auth = conn.execute(text("SELECT * FROM usuarios WHERE usuario = :u AND contrasena = :c AND perfil = 'admin'"),
+                                {"u": admin_user, "c": admin_pass}).fetchone()
+        if auth:
+            st.sidebar.success("Acceso de administrador correcto")
+            with st.sidebar.form("registro"):
+                nombre = st.text_input("Nombre")
+                nuevo_usuario = st.text_input("Nuevo usuario")
+                nueva_contrasena = st.text_input("Nueva contraseña", type="password")
+                correo = st.text_input("Correo electrónico")
+                perfil = st.selectbox("Perfil", ["admin", "colaborador"])
+                submit_nuevo = st.form_submit_button("Registrar")
+                if submit_nuevo:
+                    with engine.begin() as conn:
+                        try:
+                            conn.execute(text("""
+                                INSERT INTO usuarios (nombre, usuario, contrasena, correo, perfil)
+                                VALUES (:n, :u, :c, :e, :p)
+                            """), {"n": nombre, "u": nuevo_usuario, "c": nueva_contrasena, "e": correo, "p": perfil})
+                            st.sidebar.success("Usuario registrado correctamente")
+                        except:
+                            st.sidebar.error("⚠️ El usuario ya existe")
+        else:
+            st.sidebar.warning("Credenciales de administrador incorrectas")
+            st.stop()
+
+    if st.session_state["usuario"] == "":
+        st.stop()
+
+    st.title("📋 Control de Cotizaciones")
+
+    menu_completo = ["Capturar PR", "Operación", "Seguimiento", "Cotizaciones Completadas"]
+    menu_colaborador = ["Operación", "Seguimiento", "Cotizaciones Completadas"]
+    menu = menu_completo if st.session_state["perfil"] == "admin" else menu_colaborador
+    opcion = st.selectbox("Menú", menu)
+
+    def exportar_excel(df):
+        output = BytesIO()
+        fecha_actual = datetime.today().strftime("%Y-%m-%d")
+        nombre_archivo = f"reporte_cotizaciones_{fecha_actual}.xlsx"
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Cotizaciones')
+        output.seek(0)
+        return output, nombre_archivo
 
     def insertar_cotizacion(data):
         with engine.begin() as conn:
@@ -88,15 +123,6 @@ def main():
                 "orden_compra": orden_compra
             })
 
-    def exportar_excel(df):
-        output = BytesIO()
-        fecha_actual = datetime.today().strftime("%Y-%m-%d")
-        nombre_archivo = f"reporte_cotizaciones_{fecha_actual}.xlsx"
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Cotizaciones')
-        output.seek(0)
-        return output, nombre_archivo
-
     def eliminar_cotizacion(id):
         with engine.begin() as conn:
             conn.execute(text("DELETE FROM cotizaciones WHERE id = :id"), {"id": int(id)})
@@ -105,23 +131,13 @@ def main():
         with engine.begin() as conn:
             return pd.read_sql("SELECT * FROM cotizaciones", conn)
 
-    st.title("📋 Control de Cotizaciones")
-
-    correo_usuario = st.session_state["correo"]
-    menu_completo = ["Capturar PR", "Operación", "Seguimiento", "Cotizaciones Completadas"]
-    menu_colaborador = ["Operación", "Seguimiento", "Cotizaciones Completadas"]
-    menu = menu_completo if correo_usuario == "jgd@gmail.com" else menu_colaborador
-    opcion = st.selectbox("Menú", menu)
-
     if opcion == "Capturar PR":
         st.header("📝 Nueva Solicitud de Cotización (PR)")
-
         responsables = {
             "Vicente Ledezma": "v-ledezma@axisarquitectura.com",
             "Rebeca Gonzalez": "r-gonzalez@axisarquitectura.com",
             "Esteban Mendez": "e-mendez@axisarqutiectura.com"
         }
-
         with st.form("form_pr", clear_on_submit=False):
             requisicion = st.text_input("No. de Requisición")
             fecha_solicitud = st.date_input("Fecha de Solicitud", value=datetime.today())
@@ -130,7 +146,6 @@ def main():
             usuario = st.text_input("Usuario")
             responsable = st.selectbox("Responsable de Cotización", list(responsables.keys()))
             email_responsable = responsables[responsable]
-
             submitted = st.form_submit_button("Guardar PR")
             if submitted:
                 data = {
@@ -162,7 +177,6 @@ def main():
                 proveedor = st.text_input("Proveedor")
                 fecha_envio = st.date_input("Fecha de Cotización", value=date.today())
                 importe = st.number_input("Importe", min_value=0.0, step=100.0)
-
                 submitted = st.form_submit_button("Actualizar Cotización")
                 if submitted:
                     actualizar_cotizacion(
@@ -174,7 +188,6 @@ def main():
         st.header("⏱️ Seguimiento de PRs Abiertas")
         df = obtener_cotizaciones()
         df_abiertas = df[(df["proveedor"] != "") & (df["orden_compra"] == "")]
-
         if not df_abiertas.empty:
             for _, fila in df_abiertas.iterrows():
                 with st.expander(f"PR: {fila['requisicion']} - {fila['descripcion']}"):
@@ -211,4 +224,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
